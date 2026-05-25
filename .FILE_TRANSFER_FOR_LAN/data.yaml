@@ -1,0 +1,15 @@
+path: datasets/.main_datasets
+
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 4
+names: ['bus', 'car', 'motorbike', 'truck']
+
+roboflow:
+  workspace: han-wvsvq
+  project: vehicle-identification-up8eg
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/han-wvsvq/vehicle-identification-up8eg/dataset/2
