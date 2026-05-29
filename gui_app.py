@@ -5,7 +5,7 @@ import cv2
 from ultralytics import YOLO
 from collections import defaultdict
 import threading
-
+from main_app import VehicleCounter #import lõi xử lý đếm xe từ main_app.py
 
 class VehicleDetectionApp:
     def __init__(self, root):
@@ -105,7 +105,7 @@ class VehicleDetectionApp:
 
         if self.model_path:
             try:
-                self.model = YOLO(self.model_path)
+                #self.model = YOLO(self.model_path)
                 messagebox.showinfo("Success", "Model loaded successfully.")
             except Exception as e:
                 messagebox.showerror("Error", f"Cannot load model:\n{e}")
@@ -133,7 +133,7 @@ class VehicleDetectionApp:
             return
 
         self.running = True
-        self.vehicle_counts = defaultdict(int)
+        self.counter = VehicleCounter(self.model_path)
 
         thread = threading.Thread(target=self.process_video)
         thread.daemon = True
@@ -152,43 +152,23 @@ class VehicleDetectionApp:
 
         while self.running:
             ret, frame = self.cap.read()
-
             if not ret:
                 break
 
-            results = self.model.predict(
-                source=frame,
-                conf=0.35,
-                imgsz=640,
-                verbose=False
-            )
+            processed_frame, current_counts = self.counter.ProcessFrame(frame)
+            self.update_counts(current_counts)
 
-            annotated_frame = results[0].plot()
-
-            frame_counts = defaultdict(int)
-
-            if results[0].boxes is not None:
-                for box in results[0].boxes:
-                    class_id = int(box.cls[0])
-                    class_name = self.model.names[class_id]
-                    frame_counts[class_name] += 1
-
-            self.update_counts(frame_counts)
-
-            display_frame = cv2.resize(annotated_frame, (960, 540))
+            display_frame = cv2.resize(processed_frame, (960, 540))
             display_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
-
             img = Image.fromarray(display_frame)
             imgtk = ImageTk.PhotoImage(image=img)
 
             self.video_label.imgtk = imgtk
             self.video_label.configure(image=imgtk)
-
             self.root.update_idletasks()
 
         if self.cap:
             self.cap.release()
-
         self.running = False
 
     def update_counts(self, counts):
