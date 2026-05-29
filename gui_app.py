@@ -5,6 +5,7 @@ import cv2
 from ultralytics import YOLO
 from collections import defaultdict
 import threading
+import time
 from main_app import VehicleCounter #import lõi xử lý đếm xe từ main_app.py
 
 class VehicleDetectionApp:
@@ -14,10 +15,9 @@ class VehicleDetectionApp:
         self.root.geometry("1100x750")
 
         self.video_path = None
-        # self.model_path = None
-        # self.model = None
         self.cap = None
         self.running = False
+        self.paused = False
 
         self.vehicle_counts = defaultdict(int)
 
@@ -42,29 +42,14 @@ class VehicleDetectionApp:
         )
         self.btn_select_video.grid(row=0, column=0, padx=5)
 
-        # self.btn_select_model = tk.Button(
-        #     button_frame,
-        #     text="Select Model",
-        #     width=15,
-        #     command=self.select_model
-        # )
-        # self.btn_select_model.grid(row=0, column=1, padx=5)
-
-        self.btn_start = tk.Button(
-            button_frame,
-            text="Start",
-            width=15,
-            command=self.start_detection
-        )
+        self.btn_start = tk.Button(button_frame, text="Start", width=15, command=self.start_detection)
         self.btn_start.grid(row=0, column=1, padx=5)
 
-        self.btn_stop = tk.Button(
-            button_frame,
-            text="Stop",
-            width=15,
-            command=self.stop_detection
-        )
+        self.btn_stop = tk.Button(button_frame, text="Stop", width=15, command=self.stop_detection)
         self.btn_stop.grid(row=0, column=2, padx=5)
+
+        self.btn_continue = tk.Button(button_frame, text="Continue", width=15, command=self.continue_detection)
+        self.btn_continue.grid(row=0, column=3, padx=5)
 
         self.video_label = tk.Label(self.root, bg="black")
         self.video_label.pack(pady=10)
@@ -94,27 +79,8 @@ class VehicleDetectionApp:
 
         self.update_info_label()
 
-    # def select_model(self):
-    #     self.model_path = filedialog.askopenfilename(
-    #         title="Select YOLO Model",
-    #         filetypes=[
-    #             ("YOLO model", "*.pt"),
-    #             ("All files", "*.*")
-    #         ]
-    #     )
-
-    #     if self.model_path:
-    #         try:
-    #             #self.model = YOLO(self.model_path)
-    #             messagebox.showinfo("Success", "Model loaded successfully.")
-    #         except Exception as e:
-    #             messagebox.showerror("Error", f"Cannot load model:\n{e}")
-
-    #     self.update_info_label()
-
     def update_info_label(self):
         video_name = self.video_path if self.video_path else "None"
-        # model_name = self.model_path if self.model_path else "None"
 
         self.info_label.config(
             text=f"Video: {video_name} | Model: YOLOv8(best.pt)"
@@ -124,15 +90,12 @@ class VehicleDetectionApp:
         if not self.video_path:
             messagebox.showwarning("Warning", "Please select a video first.")
             return
-
-        # if not self.model:
-        #     messagebox.showwarning("Warning", "Please select a YOLO model first.")
-        #     return
-
+        
         if self.running:
             return
 
         self.running = True
+        self.paused = False
         self.counter = VehicleCounter()
 
         thread = threading.Thread(target=self.process_video)
@@ -140,7 +103,9 @@ class VehicleDetectionApp:
         thread.start()
 
     def stop_detection(self):
-        self.running = False
+        self.paused = True
+    def continue_detection(self):
+        self.paused = False
 
     def process_video(self):
         self.cap = cv2.VideoCapture(self.video_path)
@@ -151,6 +116,9 @@ class VehicleDetectionApp:
             return
 
         while self.running:
+            if self.paused:
+                time.sleep(0.1)
+                continue
             ret, frame = self.cap.read()
             if not ret:
                 break
