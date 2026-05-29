@@ -2,10 +2,11 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import cv2
-from ultralytics import YOLO
 from collections import defaultdict
 import threading
+import csv
 import time
+from datetime import datetime
 from main_app import VehicleCounter #import lõi xử lý đếm xe từ main_app.py
 
 class VehicleDetectionApp:
@@ -45,11 +46,14 @@ class VehicleDetectionApp:
         self.btn_start = tk.Button(button_frame, text="Start", width=15, command=self.start_detection)
         self.btn_start.grid(row=0, column=1, padx=5)
 
-        self.btn_stop = tk.Button(button_frame, text="Stop", width=15, command=self.stop_detection)
-        self.btn_stop.grid(row=0, column=2, padx=5)
+        self.btn_pause = tk.Button(button_frame, text="Pause", width=15, command=self.pause_detection)
+        self.btn_pause.grid(row=0, column=2, padx=5)
 
         self.btn_continue = tk.Button(button_frame, text="Continue", width=15, command=self.continue_detection)
         self.btn_continue.grid(row=0, column=3, padx=5)
+        
+        self.btn_stop = tk.Button(button_frame, text="Stop & Export", width=15, command=self.stop_detection, bg="#ff4c4c", fg="white")
+        self.btn_stop.grid(row=0, column=4, padx=5)
 
         self.video_label = tk.Label(self.root, bg="black")
         self.video_label.pack(pady=10)
@@ -103,7 +107,13 @@ class VehicleDetectionApp:
         thread.start()
 
     def stop_detection(self):
+        self.running = False
+        self.video_label.config(image='')
+        self.export_report()
+
+    def pause_detection(self):
         self.paused = True
+
     def continue_detection(self):
         self.paused = False
 
@@ -124,7 +134,7 @@ class VehicleDetectionApp:
                 break
 
             processed_frame, current_counts = self.counter.ProcessFrame(frame)
-            self.update_counts(current_counts)
+            self.root.after(0, self.update_counts, current_counts)
 
             display_frame = cv2.resize(processed_frame, (960, 540))
             display_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
@@ -140,6 +150,10 @@ class VehicleDetectionApp:
         self.running = False
 
     def update_counts(self, counts):
+        print("\n--- KIỂM TRA BỘ NHỚ ---")
+        print(dir(self)) 
+        print("-----------------------\n")
+
         car = counts.get("car", 0)
         bus = counts.get("bus", 0)
         motorbike = counts.get("motorbike", 0)
@@ -148,6 +162,23 @@ class VehicleDetectionApp:
         self.count_label.config(
             text=f"Car: {car} | Bus: {bus} | Motorbike: {motorbike} | Truck: {truck}"
         )
+
+    def export_report(self):
+        if not hasattr(self, 'counter') or not self.counter:
+            return
+        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"Vehicle_Report_{current_time}.csv"
+
+        try:
+            with open(filename, mode='w', newline='', encoding='utf-8-sig') as file:
+                writer = csv.writer(file)
+                writer.writerow(["Loại xe", "Số lượng Tổng lượt"])
+                for vehicle_type, count in self.counter.dem_xe_pl.items():
+                    writer.writerow([vehicle_type, count])
+
+            messagebox.showinfo("Export Success", f"Đã xuất báo cáo thành công!\nFile: {filename}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Đã xảy ra lỗi khi xuất báo cáo:\n{e}")
 
 
 if __name__ == "__main__":
